@@ -42,6 +42,7 @@ pub fn try_play<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let sender_adress_raw = deps.api.canonical_address(&env.message.sender)?;
     config(&mut deps.storage).update(|mut state| {
+        debug_print!("{:?}", &sender_adress_raw);
         if sender_adress_raw != state.invitee {
             return Err(StdError::Unauthorized { backtrace: None });
         }
@@ -98,7 +99,7 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
         let player_2_env = mock_env("player2", &coins(1000, "earth"));
         let msg = InitMsg {
-            invitee: player_2_env.contract.address,
+            invitee: player_2_env.message.sender,
             owner_move: Moves::Block,
         };
         let env = mock_env("creator", &coins(1000, "earth"));
@@ -110,7 +111,7 @@ mod tests {
         // it worked, let's query the state
         let res = query(&deps, QueryMsg::GetGameState {}).unwrap();
         let value: GameStateResponse = from_binary(&res).unwrap();
-        println!("{:?}",value);
+        println!("{:?}", value);
         assert_eq!(GameState::Playing, value.state);
     }
     #[test]
@@ -120,7 +121,7 @@ mod tests {
         let player_2_env = mock_env("player2", &coins(1000, "earth"));
 
         let msg = InitMsg {
-            invitee: player_2_env.contract.address.clone(),
+            invitee: player_2_env.message.sender.clone(),
             owner_move: Moves::Block,
         };
         println!("{:?}", msg);
