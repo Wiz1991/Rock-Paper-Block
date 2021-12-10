@@ -11,6 +11,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     _msg: InitMsg,
 ) -> StdResult<InitResponse> {
+    debug_print!("Trying to initialize, {:?}", _msg);
     let state = State {
         game_state: crate::state::GameState::Playing,
         owner: env.message.sender,
@@ -44,7 +45,7 @@ pub fn try_join<S: Storage, A: Api, Q: Querier>(
     player_move: Moves,
 ) -> StdResult<HandleResponse> {
     let mut state = State::load(&deps.storage)?;
-
+    debug_print!("{:?}", state);
     if state.player_1.is_none() {
         state.player_1 = Some(env.message.sender);
         state.player_1_move = Some(player_move);
