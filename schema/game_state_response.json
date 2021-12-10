@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GameStateResponse",
+  "type": "object",
+  "required": [
+    "state"
+  ],
+  "properties": {
+    "state": {
+      "$ref": "#/definitions/GameState"
+    }
+  },
+  "definitions": {
+    "GameState": {
+      "type": "string",
+      "enum": [
+        "Playing",
+        "Player1Win",
+        "Player2Win",
+        "Draw"
+      ]
+    }
+  }
+}

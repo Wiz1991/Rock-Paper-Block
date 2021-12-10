@@ -3,25 +3,87 @@
   "title": "State",
   "type": "object",
   "required": [
-    "count",
+    "game_state",
     "owner"
   ],
   "properties": {
-    "count": {
-      "type": "integer",
-      "format": "int32"
+    "game_state": {
+      "$ref": "#/definitions/GameState"
     },
     "owner": {
-      "$ref": "#/definitions/CanonicalAddr"
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "player_1": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/HumanAddr"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "player_1_move": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Moves"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "player_2": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/HumanAddr"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "player_2_move": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Moves"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "winner": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/HumanAddr"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "definitions": {
-    "Binary": {
-      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+    "GameState": {
+      "type": "string",
+      "enum": [
+        "Playing",
+        "Player1Win",
+        "Player2Win",
+        "Draw"
+      ]
+    },
+    "HumanAddr": {
       "type": "string"
     },
-    "CanonicalAddr": {
-      "$ref": "#/definitions/Binary"
+    "Moves": {
+      "type": "string",
+      "enum": [
+        "Block",
+        "Paper",
+        "Scissors"
+      ]
     }
   }
 }

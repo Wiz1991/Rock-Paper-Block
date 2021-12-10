@@ -9,13 +9,16 @@ use crate::state::{config, config_read, GameState, Moves, State};
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    msg: InitMsg,
+    _msg: InitMsg,
 ) -> StdResult<InitResponse> {
     let state = State {
-        owner_move: msg.owner_move,
-        invitee: deps.api.canonical_address(&msg.invitee)?,
         game_state: crate::state::GameState::Playing,
         owner: env.message.sender,
+        player_1: None,
+        player_1_move: None,
+        player_2: None,
+        winner: None,
+        player_2_move: None,
     };
 
     config(&mut deps.storage).save(&state)?;
@@ -31,45 +34,65 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::Play { player_move } => try_play(deps, env, player_move),
+        HandleMsg::Join { player_move } => try_join(deps, env, player_move),
     }
 }
 
-pub fn try_play<S: Storage, A: Api, Q: Querier>(
+pub fn try_join<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     player_move: Moves,
 ) -> StdResult<HandleResponse> {
-    let sender_adress_raw = deps.api.canonical_address(&env.message.sender)?;
-    config(&mut deps.storage).update(|mut state| {
-        debug_print!("{:?}", &sender_adress_raw);
-        if sender_adress_raw != state.invitee {
-            return Err(StdError::Unauthorized { backtrace: None });
-        }
-        if state.game_state != GameState::Playing {
-            return Err(StdError::GenericErr {
-                msg: "Game is over.".to_string(),
-                backtrace: None,
-            });
-        }
+    let mut state = State::load(&deps.storage)?;
 
-        let result = match (player_move, &state.owner_move) {
-            (Moves::Paper, Moves::Scissors) => GameState::OwnerWin,
-            (Moves::Block, Moves::Paper) => GameState::OwnerWin,
-            (Moves::Block, Moves::Scissors) => GameState::InviteeWin,
-            (Moves::Paper, Moves::Block) => GameState::InviteeWin,
-            (Moves::Scissors, Moves::Paper) => GameState::InviteeWin,
+    if state.player_1.is_none() {
+        state.player_1 = Some(env.message.sender);
+        state.player_1_move = Some(player_move);
+
+        state.save(&mut deps.storage)?;
+        Ok(HandleResponse::default())
+    } else if state.player_2.is_none() {
+        state.player_2 = Some(env.message.sender);
+        state.player_2_move = Some(player_move);
+
+        let result = match (
+            &state.player_1_move.as_ref().unwrap(),
+            &state.player_2_move.as_ref().unwrap(),
+        ) {
+            (Moves::Paper, Moves::Scissors) => GameState::Player2Win,
+            (Moves::Block, Moves::Paper) => GameState::Player2Win,
+            (Moves::Scissors, Moves::Block) => GameState::Player2Win,
+            (Moves::Block, Moves::Scissors) => GameState::Player1Win,
+            (Moves::Paper, Moves::Block) => GameState::Player1Win,
+            (Moves::Scissors, Moves::Paper) => GameState::Player1Win,
             (Moves::Block, Moves::Block) => GameState::Draw,
             (Moves::Paper, Moves::Paper) => GameState::Draw,
-            (Moves::Scissors, Moves::Block) => GameState::Draw,
             (Moves::Scissors, Moves::Scissors) => GameState::Draw,
         };
         state.game_state = result;
 
-        Ok(state)
-    })?;
-    Ok(HandleResponse::default())
+        state.winner = match &state.game_state {
+            GameState::Player1Win => Some(state.player_2.as_ref().unwrap().clone()),
+            GameState::Player2Win => Some(state.player_1.as_ref().unwrap().clone()),
+            GameState::Draw => None,
+            _ => None,
+        };
+
+        state.save(&mut deps.storage)?;
+
+        Ok(HandleResponse::default())
+    } else {
+        return Err(StdError::generic_err("Room is full"));
+    }
 }
+// pub fn save_player<S: Storage>(storage: &S, env: Env) -> StdResult<HandleResponse> {
+//     config(storage).update(|mut state| {
+//         state.player_1_move = Some(Moves::Block);
+
+//         Ok(state)
+//     });
+//     Ok(HandleResponse::default())
+// }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
@@ -97,11 +120,7 @@ mod tests {
     #[test]
     fn proper_initialization() {
         let mut deps = mock_dependencies(20, &[]);
-        let player_2_env = mock_env("player2", &coins(1000, "earth"));
-        let msg = InitMsg {
-            invitee: player_2_env.message.sender,
-            owner_move: Moves::Block,
-        };
+        let msg = InitMsg {};
         let env = mock_env("creator", &coins(1000, "earth"));
 
         // we can just call .unwrap() to assert this was a success
@@ -118,23 +137,28 @@ mod tests {
     fn play() {
         let mut deps = mock_dependencies(20, &coins(2, "earth"));
 
+        let player_1_env = mock_env("player1", &coins(1000, "earth"));
         let player_2_env = mock_env("player2", &coins(1000, "earth"));
 
-        let msg = InitMsg {
-            invitee: player_2_env.message.sender.clone(),
-            owner_move: Moves::Block,
-        };
-        println!("{:?}", msg);
+        //create a room, anyone can do so.
+        let msg = InitMsg {};
         let env = mock_env("creator", &coins(1000, "earth"));
         let _res = init(&mut deps, env, msg);
 
-        let msg = HandleMsg::Play {
+        //player 1 joins room and sends his move
+        let msg = HandleMsg::Join {
             player_move: Moves::Paper,
         };
-        let _res = handle(&mut deps, player_2_env, msg).unwrap();
+        let _res = handle(&mut deps, player_1_env, msg);
 
+        //player 2 joins room and sends his move
+        let msg = HandleMsg::Join {
+            player_move: Moves::Block,
+        };
+        let _res = handle(&mut deps, player_2_env, msg);
+        //get the result and assert if wrong
         let res = query(&deps, QueryMsg::GetGameState {}).unwrap();
         let value: GameStateResponse = from_binary(&res).unwrap();
-        assert_eq!(GameState::InviteeWin, value.state);
+        assert_eq!(GameState::Player1Win, value.state);
     }
 }

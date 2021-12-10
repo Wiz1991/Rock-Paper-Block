@@ -5,33 +5,31 @@
     {
       "type": "object",
       "required": [
-        "increment"
+        "join"
       ],
       "properties": {
-        "increment": {
-          "type": "object"
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "reset"
-      ],
-      "properties": {
-        "reset": {
+        "join": {
           "type": "object",
           "required": [
-            "count"
+            "player_move"
           ],
           "properties": {
-            "count": {
-              "type": "integer",
-              "format": "int32"
+            "player_move": {
+              "$ref": "#/definitions/Moves"
             }
           }
         }
       }
     }
-  ]
+  ],
+  "definitions": {
+    "Moves": {
+      "type": "string",
+      "enum": [
+        "Block",
+        "Paper",
+        "Scissors"
+      ]
+    }
+  }
 }

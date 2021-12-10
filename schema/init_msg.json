@@ -3,12 +3,28 @@
   "title": "InitMsg",
   "type": "object",
   "required": [
-    "count"
+    "invitee",
+    "owner_move"
   ],
   "properties": {
-    "count": {
-      "type": "integer",
-      "format": "int32"
+    "invitee": {
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "owner_move": {
+      "$ref": "#/definitions/Moves"
+    }
+  },
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    },
+    "Moves": {
+      "type": "string",
+      "enum": [
+        "Block",
+        "Paper",
+        "Scissors"
+      ]
     }
   }
 }
